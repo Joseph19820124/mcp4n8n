@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+coverage/
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Claude and development tools
+.claude/
+.production-scanner/
