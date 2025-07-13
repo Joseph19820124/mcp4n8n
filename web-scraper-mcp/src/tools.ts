@@ -31,7 +31,7 @@ const USER_AGENTS = [
 
 // GitHub configuration - prioritize env var over config.ts
 const GITHUB_CONFIG = {
-  owner: CONFIG_GITHUB.owner || 'Ken-Kabutu',
+  owner: CONFIG_GITHUB.owner || 'Joseph19820124',
   repo: CONFIG_GITHUB.repo || 'claude-tools-knowledge-repo',
   branch: CONFIG_GITHUB.branch || 'main',
   token: process.env.GITHUB_TOKEN || CONFIG_GITHUB.token || '',
