@@ -148,6 +148,15 @@ export function setupTools(server: Server): void {
         }
       },
       {
+        name: 'list_tables',
+        description: 'List all available tables in the database',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false
+        }
+      },
+      {
         name: 'query',
         description: 'Query data from a Supabase table with filters and options',
         inputSchema: {
@@ -523,6 +532,60 @@ export function setupTools(server: Server): void {
           }
         }
 
+        case 'list_tables': {
+          try {
+            console.error('[List Tables] Fetching available tables...');
+            const client = getSupabaseClient();
+            
+            const result = await executeWithRetry(async () => 
+              await client
+                .from('information_schema.tables')
+                .select('table_name, table_type')
+                .eq('table_schema', 'public')
+                .order('table_name')
+            );
+            
+            if (result.error) {
+              console.error('[List Tables] Query failed:', result.error);
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    error: 'Failed to list tables',
+                    details: result.error.message || 'Unknown error',
+                    suggestion: 'Check database permissions and connectivity'
+                  }, null, 2)
+                }]
+              };
+            }
+            
+            console.error(`[List Tables] Found ${(result as any).data?.length || 0} tables`);
+            success = true;
+            
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  success: true,
+                  tables: (result as any).data || [],
+                  count: (result as any).data?.length || 0
+                }, null, 2)
+              }]
+            };
+          } catch (error) {
+            console.error('[List Tables] Unexpected error:', error);
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  error: 'Failed to list tables',
+                  details: error instanceof Error ? error.message : 'Unknown error'
+                }, null, 2)
+              }]
+            };
+          }
+        }
+
         case 'query': {
           const { table, select = '*', filters = [], order, limit, offset, single } = args as any;
           const cacheKey = getCacheKey('query', args);
@@ -765,6 +828,7 @@ export function setupTools(server: Server): void {
             
             if (result.error) {
               console.error(`[Count] Query failed:`, result.error);
+              console.error(`[Count] Error details - message: "${result.error.message}", code: "${result.error.code}", hint: "${result.error.hint}"`);
               
               // Check if it's a table not found error
               if (result.error.message.includes('does not exist') || result.error.message.includes('relation') || result.error.code === 'PGRST116') {
