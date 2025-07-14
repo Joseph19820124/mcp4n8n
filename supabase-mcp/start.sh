@@ -12,10 +12,8 @@ if [ -z "$SUPABASE_URL" ]; then
     exit 1
 fi
 
-# Check if at least one API key is provided (prioritize service_role_secret)
-if [ -z "$SUPABASE_SERVICE_ROLE_SECRET" ] && [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$SUPABASE_ANON_KEY" ]; then
-    echo "Error: At least one Supabase API key must be set"
-    echo "Set one of: SUPABASE_SERVICE_ROLE_SECRET (preferred), SUPABASE_SERVICE_ROLE_KEY, or SUPABASE_ANON_KEY"
+if [ -z "$SUPABASE_SERVICE_ROLE_SECRET" ]; then
+    echo "Error: SUPABASE_SERVICE_ROLE_SECRET environment variable is not set"
     exit 1
 fi
 
@@ -28,9 +26,7 @@ fi
 echo "Configuration:"
 echo "  - Supabase URL: $SUPABASE_URL"
 echo "  - Using Auth Token: ${MCP_AUTH_TOKEN:0:10}..."
-echo "  - Service Role Secret: $([ -n "$SUPABASE_SERVICE_ROLE_SECRET" ] && echo "Set" || echo "Not set")"
-echo "  - Service Role Key: $([ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && echo "Set" || echo "Not set")"
-echo "  - Anon Key: $([ -n "$SUPABASE_ANON_KEY" ] && echo "Set" || echo "Not set")"
+echo "  - Service Role Secret: Set"
 
 # Replace environment variables in nginx configuration
 echo "Configuring nginx..."

@@ -29,26 +29,17 @@ const metrics: DatabaseMetrics = {
 function getSupabaseClient(): SupabaseClient {
   if (!supabaseClient) {
     const url = process.env.SUPABASE_URL;
-    // Try service_role_secret first, then other service role variants, then anon key as fallback
-    const key = process.env.SUPABASE_SERVICE_ROLE_SECRET || 
-                process.env.SUPABASE_SERVICE_ROLE_KEY || 
-                process.env.SUPABASE_ANON_KEY;
-    
-    const keyType = process.env.SUPABASE_SERVICE_ROLE_SECRET ? 'service_role_secret' :
-                   process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role_key' :
-                   process.env.SUPABASE_ANON_KEY ? 'anon_key' : 'none';
+    const key = process.env.SUPABASE_SERVICE_ROLE_SECRET;
     
     console.error('[Debug] Supabase URL:', url ? `${url.substring(0, 20)}...` : 'NOT SET');
     console.error('[Debug] Supabase Key:', key ? `${key.substring(0, 10)}...` : 'NOT SET');
-    console.error('[Debug] Key Type:', keyType);
+    console.error('[Debug] Key Type: service_role_secret');
     
     if (!url || !key) {
       console.error('[Error] Missing Supabase credentials:');
       console.error('- SUPABASE_URL:', !!url);
       console.error('- SUPABASE_SERVICE_ROLE_SECRET:', !!process.env.SUPABASE_SERVICE_ROLE_SECRET);
-      console.error('- SUPABASE_SERVICE_ROLE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-      console.error('- SUPABASE_ANON_KEY:', !!process.env.SUPABASE_ANON_KEY);
-      throw new Error('Supabase credentials not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_SECRET (preferred) or other valid API key.');
+      throw new Error('Supabase credentials not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_SECRET environment variables.');
     }
     
     try {
@@ -392,8 +383,6 @@ export function setupTools(server: Server): void {
             const envCheck = {
               SUPABASE_URL: !!process.env.SUPABASE_URL,
               SUPABASE_SERVICE_ROLE_SECRET: !!process.env.SUPABASE_SERVICE_ROLE_SECRET,
-              SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-              SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
             };
             
             console.error('[Health Check] Environment variables:', envCheck);
@@ -448,8 +437,6 @@ export function setupTools(server: Server): void {
                   environmentVariables: {
                     SUPABASE_URL: !!process.env.SUPABASE_URL,
                     SUPABASE_SERVICE_ROLE_SECRET: !!process.env.SUPABASE_SERVICE_ROLE_SECRET,
-                    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-                    SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
                   }
                 }, null, 2)
               }]
@@ -487,7 +474,7 @@ export function setupTools(server: Server): void {
               const response = await fetch(testUrl, {
                 method: 'HEAD',
                 headers: {
-                  'apikey': process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+                  'apikey': process.env.SUPABASE_SERVICE_ROLE_SECRET || ''
                 }
               });
               
