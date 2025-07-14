@@ -14,8 +14,8 @@ RUN npm install -g supergateway
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including devDependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -23,11 +23,11 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Remove devDependencies to reduce image size
+RUN npm ci --omit=dev
+
 # Set environment variables
 ENV NODE_ENV=production
-ENV SUPABASE_URL=${SUPABASE_URL}
-ENV SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-ENV MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
