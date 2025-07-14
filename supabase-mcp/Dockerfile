@@ -28,6 +28,10 @@ RUN npm ci --omit=dev
 
 # Set environment variables
 ENV NODE_ENV=production
+ENV SUPABASE_URL=${SUPABASE_URL}
+ENV SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+ENV SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+ENV MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf

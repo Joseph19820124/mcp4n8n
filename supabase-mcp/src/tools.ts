@@ -31,11 +31,24 @@ function getSupabaseClient(): SupabaseClient {
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
     
+    console.error('[Debug] Supabase URL:', url ? `${url.substring(0, 20)}...` : 'NOT SET');
+    console.error('[Debug] Supabase Key:', key ? `${key.substring(0, 10)}...` : 'NOT SET');
+    
     if (!url || !key) {
-      throw new Error('Supabase credentials not configured');
+      console.error('[Error] Missing Supabase credentials:');
+      console.error('- SUPABASE_URL:', !!url);
+      console.error('- SUPABASE_SERVICE_ROLE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+      console.error('- SUPABASE_ANON_KEY:', !!process.env.SUPABASE_ANON_KEY);
+      throw new Error('Supabase credentials not configured. Please set SUPABASE_URL and either SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY environment variables.');
     }
     
-    supabaseClient = createClient(url, key);
+    try {
+      supabaseClient = createClient(url, key);
+      console.error('[Debug] Supabase client created successfully');
+    } catch (error) {
+      console.error('[Error] Failed to create Supabase client:', error);
+      throw error;
+    }
   }
   return supabaseClient;
 }
@@ -78,6 +91,20 @@ async function executeWithRetry<T>(
     try {
       return await operation();
     } catch (error) {
+      console.error(`[Retry ${i + 1}/${retries}] Operation failed:`, error);
+      
+      // Provide specific error messages for common issues
+      if (error instanceof Error) {
+        if (error.message.includes('fetch failed')) {
+          console.error('[Network Error] Unable to connect to Supabase. Check:');
+          console.error('1. Internet connectivity');
+          console.error('2. Supabase URL is correct');
+          console.error('3. Firewall/proxy settings');
+        } else if (error.message.includes('Invalid API key')) {
+          console.error('[Auth Error] Invalid Supabase API key. Check your credentials.');
+        }
+      }
+      
       if (i === retries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (i + 1)));
     }
@@ -102,6 +129,15 @@ export function setupTools(server: Server): void {
   // Query data from a table
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
+      {
+        name: 'health_check',
+        description: 'Check Supabase connection and credentials',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false
+        }
+      },
       {
         name: 'query',
         description: 'Query data from a Supabase table with filters and options',
@@ -321,6 +357,76 @@ export function setupTools(server: Server): void {
       clearExpiredCache();
 
       switch (name) {
+        case 'health_check': {
+          try {
+            console.error('[Health Check] Starting Supabase connection test...');
+            
+            // Check environment variables
+            const envCheck = {
+              SUPABASE_URL: !!process.env.SUPABASE_URL,
+              SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+              SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+            };
+            
+            console.error('[Health Check] Environment variables:', envCheck);
+            
+            // Try to create client
+            const client = getSupabaseClient();
+            
+            // Try a simple query to test connection
+            const { data, error } = await client
+              .from('information_schema.tables')
+              .select('count(*)')
+              .limit(1);
+            
+            if (error) {
+              console.error('[Health Check] Connection test failed:', error);
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'FAILED',
+                    error: error.message,
+                    environmentVariables: envCheck,
+                    suggestion: 'Check your Supabase credentials and network connectivity'
+                  }, null, 2)
+                }]
+              };
+            }
+            
+            console.error('[Health Check] Connection test successful');
+            success = true;
+            
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'SUCCESS',
+                  message: 'Supabase connection is working correctly',
+                  environmentVariables: envCheck,
+                  testResult: 'Database query executed successfully'
+                }, null, 2)
+              }]
+            };
+          } catch (error) {
+            console.error('[Health Check] Unexpected error:', error);
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'ERROR',
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                  environmentVariables: {
+                    SUPABASE_URL: !!process.env.SUPABASE_URL,
+                    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+                    SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+                  }
+                }, null, 2)
+              }]
+            };
+          }
+        }
+
         case 'query': {
           const { table, select = '*', filters = [], order, limit, offset, single } = args as any;
           const cacheKey = getCacheKey('query', args);
