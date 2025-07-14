@@ -62,7 +62,7 @@ export function setupResources(server: Server): void {
         case 'supabase://config': {
           const url = process.env.SUPABASE_URL;
           const hasAnonKey = !!process.env.SUPABASE_ANON_KEY;
-          const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_SECRET;
           
           return {
             contents: [{
