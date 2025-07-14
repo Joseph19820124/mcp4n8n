@@ -11,7 +11,7 @@ A Model Context Protocol (MCP) server for monitoring Google API quotas across mu
 
 ## Available Tools
 
-### `get_quota_status`
+### `get_google_key_quota`
 Get quota status for Google APIs.
 
 **Parameters:**
@@ -62,7 +62,7 @@ npm start
 
 1. Deploy to Railway or your preferred platform
 2. Configure the MCP Client node in n8n with your server URL
-3. Use the `get_quota_status` tool to monitor API usage
+3. Use the `get_google_key_quota` tool to monitor API usage
 
 ## Docker Deployment
 
@@ -78,13 +78,13 @@ docker run -p 8080:8080 -e MCP_AUTH_TOKEN=your-token google-api-mcp
 ```javascript
 // Get all API quotas
 {
-  "tool": "get_quota_status",
+  "tool": "get_google_key_quota",
   "arguments": {}
 }
 
 // Get specific API quota
 {
-  "tool": "get_quota_status", 
+  "tool": "get_google_key_quota", 
   "arguments": {
     "apiName": "youtube"
   }

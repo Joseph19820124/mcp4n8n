@@ -103,7 +103,7 @@ async function main() {
     return {
       tools: [
         {
-          name: 'get_quota_status',
+          name: 'get_google_key_quota',
           description: 'Get quota status for Google APIs including YouTube, Maps, Translate, and Vision APIs',
           inputSchema: {
             type: 'object',
@@ -127,8 +127,8 @@ async function main() {
 
     try {
       switch (name) {
-        case 'get_quota_status':
-          return await handleGetQuotaStatus(args as any || {});
+        case 'get_google_key_quota':
+          return await handleGetGoogleKeyQuota(args as any || {});
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
@@ -149,8 +149,8 @@ async function main() {
     }
   });
 
-  // Handle get_quota_status tool
-  async function handleGetQuotaStatus(args: { apiName?: string }) {
+  // Handle get_google_key_quota tool
+  async function handleGetGoogleKeyQuota(args: { apiName?: string }) {
     const apiName = args.apiName || 'all';
     
     logger.info('Getting quota status', { apiName });
