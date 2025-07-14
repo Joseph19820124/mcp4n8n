@@ -139,6 +139,15 @@ export function setupTools(server: Server): void {
         }
       },
       {
+        name: 'network_test',
+        description: 'Test basic network connectivity to Supabase',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false
+        }
+      },
+      {
         name: 'query',
         description: 'Query data from a Supabase table with filters and options',
         inputSchema: {
@@ -374,6 +383,7 @@ export function setupTools(server: Server): void {
             const client = getSupabaseClient();
             
             // Try a simple query to test connection
+            console.error('[Health Check] Testing basic connectivity...');
             const { data, error } = await client
               .from('information_schema.tables')
               .select('count(*)')
@@ -421,6 +431,92 @@ export function setupTools(server: Server): void {
                     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
                     SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
                   }
+                }, null, 2)
+              }]
+            };
+          }
+        }
+
+        case 'network_test': {
+          try {
+            console.error('[Network Test] Starting connectivity tests...');
+            
+            const supabaseUrl = process.env.SUPABASE_URL;
+            if (!supabaseUrl) {
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'ERROR',
+                    error: 'SUPABASE_URL not set'
+                  }, null, 2)
+                }]
+              };
+            }
+            
+            const url = new URL(supabaseUrl);
+            const hostname = url.hostname;
+            
+            console.error(`[Network Test] Testing connection to: ${hostname}`);
+            
+            // Try basic HTTP fetch to the Supabase endpoint
+            const testUrl = `${supabaseUrl}/rest/v1/`;
+            console.error(`[Network Test] Fetching: ${testUrl}`);
+            
+            try {
+              const response = await fetch(testUrl, {
+                method: 'HEAD',
+                headers: {
+                  'apikey': process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+                }
+              });
+              
+              console.error(`[Network Test] Response status: ${response.status}`);
+              
+              success = true;
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'SUCCESS',
+                    message: 'Network connectivity test passed',
+                    details: {
+                      hostname,
+                      httpStatus: response.status,
+                      responseHeaders: Object.fromEntries(response.headers.entries())
+                    }
+                  }, null, 2)
+                }]
+              };
+            } catch (fetchError) {
+              console.error(`[Network Test] Fetch failed:`, fetchError);
+              
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'FAILED',
+                    error: 'Network connectivity test failed',
+                    details: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+                    hostname,
+                    troubleshooting: [
+                      'Check if the container has internet access',
+                      'Verify DNS resolution works',
+                      'Check firewall/proxy settings',
+                      'Ensure Supabase URL is correct'
+                    ]
+                  }, null, 2)
+                }]
+              };
+            }
+          } catch (error) {
+            console.error('[Network Test] Unexpected error:', error);
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'ERROR',
+                  error: error instanceof Error ? error.message : 'Unknown error'
                 }, null, 2)
               }]
             };
@@ -653,27 +749,69 @@ export function setupTools(server: Server): void {
 
         case 'count': {
           const { table, filters = [] } = args as any;
-          const client = getSupabaseClient();
+          console.error(`[Count] Counting rows in table: ${table}`);
           
-          let query = client.from(table).select('*', { count: 'exact', head: true });
-          
-          for (const filter of filters) {
-            query = (query as any)[filter.operator](filter.column, filter.value);
-          }
+          try {
+            const client = getSupabaseClient();
+            
+            let query = client.from(table).select('*', { count: 'exact', head: true });
+            
+            for (const filter of filters) {
+              query = (query as any)[filter.operator](filter.column, filter.value);
+            }
 
-          const result = await executeWithRetry(async () => await query);
-          
-          if (result.error) throw result.error;
-          success = true;
-          
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                count: result.count
-              }, null, 2)
-            }]
-          };
+            console.error(`[Count] Executing query for table: ${table}`);
+            const result = await executeWithRetry(async () => await query);
+            
+            if (result.error) {
+              console.error(`[Count] Query failed:`, result.error);
+              
+              // Check if it's a table not found error
+              if (result.error.message.includes('does not exist') || result.error.message.includes('relation') || result.error.code === 'PGRST116') {
+                return {
+                  content: [{
+                    type: 'text',
+                    text: JSON.stringify({
+                      error: `Table '${table}' does not exist or is not accessible`,
+                      suggestion: 'Check table name spelling and permissions',
+                      availableTables: 'Use the schema tool to see available tables'
+                    }, null, 2)
+                  }]
+                };
+              }
+              
+              throw result.error;
+            }
+            
+            console.error(`[Count] Query successful, count: ${result.count}`);
+            success = true;
+            
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  count: result.count
+                }, null, 2)
+              }]
+            };
+          } catch (error) {
+            console.error(`[Count] Unexpected error:`, error);
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  error: 'Network connection failed',
+                  details: error instanceof Error ? error.message : 'Unknown error',
+                  troubleshooting: {
+                    step1: 'Check if Supabase is accessible from your network',
+                    step2: 'Verify firewall/proxy settings',
+                    step3: 'Run health_check tool for detailed diagnostics',
+                    step4: 'Check Supabase service status'
+                  }
+                }, null, 2)
+              }]
+            };
+          }
         }
 
         case 'metrics': {
