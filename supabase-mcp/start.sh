@@ -26,7 +26,7 @@ fi
 echo "Configuration:"
 echo "  - Supabase URL: $SUPABASE_URL"
 echo "  - Using Auth Token: ${MCP_AUTH_TOKEN:0:10}..."
-echo "  - Service Role Secret: Set"
+echo "  - Service Role Secret: $([ -n "$SUPABASE_SERVICE_ROLE_SECRET" ] && echo "${SUPABASE_SERVICE_ROLE_SECRET:0:10}..." || echo "NOT SET")"
 
 # Replace environment variables in nginx configuration
 echo "Configuring nginx..."
@@ -54,9 +54,19 @@ echo "nginx started successfully (PID: $NGINX_PID)"
 
 # Test Supabase connection
 echo "Testing Supabase connection..."
+echo "Debug - SUPABASE_URL: ${SUPABASE_URL}"
+echo "Debug - SUPABASE_SERVICE_ROLE_SECRET length: ${#SUPABASE_SERVICE_ROLE_SECRET}"
 node -e "
 const { createClient } = require('@supabase/supabase-js');
-const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_SECRET;
+console.log('Node debug - URL:', url ? 'SET' : 'NOT SET');
+console.log('Node debug - Key:', key ? 'SET (length: ' + key.length + ')' : 'NOT SET');
+if (!url || !key) {
+    console.error('✗ Missing credentials');
+    process.exit(1);
+}
+const client = createClient(url, key);
 client.from('').select('').then(() => {
     console.log('✓ Supabase connection successful');
 }).catch(err => {
