@@ -1,5 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 let supabaseClient: SupabaseClient | null = null;
 
@@ -18,7 +19,7 @@ function getSupabaseClient(): SupabaseClient {
 }
 
 export function setupResources(server: Server): void {
-  server.setRequestHandler('resources/list', async () => ({
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
     resources: [
       {
         uri: 'supabase://config',
@@ -53,7 +54,7 @@ export function setupResources(server: Server): void {
     ]
   }));
 
-  server.setRequestHandler('resources/read', async (request) => {
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const { uri } = request.params;
 
     try {

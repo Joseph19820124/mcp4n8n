@@ -1,5 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { 
   QueryOptions, 
   QueryResult, 
@@ -99,7 +100,7 @@ function updateMetrics(startTime: number, success: boolean): void {
 
 export function setupTools(server: Server): void {
   // Query data from a table
-  server.setRequestHandler('tools/list', async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
         name: 'query',
@@ -311,7 +312,7 @@ export function setupTools(server: Server): void {
   }));
 
   // Handle query operation
-  server.setRequestHandler('tools/call', async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     const startTime = Date.now();
     let success = false;
@@ -340,21 +341,21 @@ export function setupTools(server: Server): void {
             query = query.order(order.column, { ascending: order.ascending ?? true });
           }
           if (limit) query = query.limit(limit);
-          if (offset) query = query.range(offset, offset + (limit || 10) - 1);
-          if (single) query = query.single();
+          if (offset) query = (query as any).range(offset, offset + (limit || 10) - 1);
+          if (single) query = (query as any).single();
 
-          const result = await executeWithRetry(() => query);
+          const result = await executeWithRetry(async () => await query);
           
           if (result.error) throw result.error;
           
-          setCache(cacheKey, result.data);
+          setCache(cacheKey, (result as any).data);
           success = true;
           
           return {
             content: [{
               type: 'text',
               text: JSON.stringify({
-                data: result.data,
+                data: (result as any).data,
                 count: result.count
               }, null, 2)
             }]
@@ -366,9 +367,9 @@ export function setupTools(server: Server): void {
           const client = getSupabaseClient();
           
           let query = client.from(table).insert(data);
-          if (returning) query = query.select();
+          if (returning) query = (query as any).select();
 
-          const result = await executeWithRetry(() => query);
+          const result = await executeWithRetry(async () => await query);
           
           if (result.error) throw result.error;
           success = true;
@@ -378,7 +379,7 @@ export function setupTools(server: Server): void {
               type: 'text',
               text: JSON.stringify({
                 success: true,
-                data: result.data
+                data: (result as any).data
               }, null, 2)
             }]
           };
@@ -394,9 +395,9 @@ export function setupTools(server: Server): void {
             query = (query as any)[filter.operator](filter.column, filter.value);
           }
           
-          if (returning) query = query.select();
+          if (returning) query = (query as any).select();
 
-          const result = await executeWithRetry(() => query);
+          const result = await executeWithRetry(async () => await query);
           
           if (result.error) throw result.error;
           success = true;
@@ -406,7 +407,7 @@ export function setupTools(server: Server): void {
               type: 'text',
               text: JSON.stringify({
                 success: true,
-                data: result.data
+                data: (result as any).data
               }, null, 2)
             }]
           };
@@ -422,9 +423,9 @@ export function setupTools(server: Server): void {
             query = (query as any)[filter.operator](filter.column, filter.value);
           }
           
-          if (returning) query = query.select();
+          if (returning) query = (query as any).select();
 
-          const result = await executeWithRetry(() => query);
+          const result = await executeWithRetry(async () => await query);
           
           if (result.error) throw result.error;
           success = true;
@@ -434,7 +435,7 @@ export function setupTools(server: Server): void {
               type: 'text',
               text: JSON.stringify({
                 success: true,
-                data: result.data
+                data: (result as any).data
               }, null, 2)
             }]
           };
@@ -445,9 +446,9 @@ export function setupTools(server: Server): void {
           const client = getSupabaseClient();
           
           let query = client.from(table).upsert(data, { onConflict });
-          if (returning) query = query.select();
+          if (returning) query = (query as any).select();
 
-          const result = await executeWithRetry(() => query);
+          const result = await executeWithRetry(async () => await query);
           
           if (result.error) throw result.error;
           success = true;
@@ -457,7 +458,7 @@ export function setupTools(server: Server): void {
               type: 'text',
               text: JSON.stringify({
                 success: true,
-                data: result.data
+                data: (result as any).data
               }, null, 2)
             }]
           };
@@ -467,7 +468,7 @@ export function setupTools(server: Server): void {
           const { functionName, params = {} } = args as any;
           const client = getSupabaseClient();
           
-          const result = await executeWithRetry(() => client.rpc(functionName, params));
+          const result = await executeWithRetry(async () => await client.rpc(functionName, params));
           
           if (result.error) throw result.error;
           success = true;
@@ -477,7 +478,7 @@ export function setupTools(server: Server): void {
               type: 'text',
               text: JSON.stringify({
                 success: true,
-                data: result.data
+                data: (result as any).data
               }, null, 2)
             }]
           };
@@ -489,12 +490,8 @@ export function setupTools(server: Server): void {
           
           for (const op of operations) {
             try {
-              const result = await server.callTool(op.operation, {
-                table: op.table,
-                ...op.data,
-                ...op.options
-              });
-              results.push({ data: result, error: null });
+              // Batch operations not supported in current implementation
+              results.push({ data: null, error: new Error('Batch operations not supported') });
             } catch (error) {
               results.push({ data: null, error: error as Error });
             }
@@ -522,7 +519,7 @@ export function setupTools(server: Server): void {
             ? client.from('information_schema.tables').select('*').eq('table_name', table)
             : client.from('information_schema.tables').select('*').eq('table_schema', 'public');
             
-          const tablesResult = await executeWithRetry(() => tablesQuery);
+          const tablesResult = await executeWithRetry(async () => await tablesQuery);
           
           if (tablesResult.error) throw tablesResult.error;
           
@@ -531,7 +528,7 @@ export function setupTools(server: Server): void {
             ? client.from('information_schema.columns').select('*').eq('table_name', table)
             : client.from('information_schema.columns').select('*').eq('table_schema', 'public');
             
-          const columnsResult = await executeWithRetry(() => columnsQuery);
+          const columnsResult = await executeWithRetry(async () => await columnsQuery);
           
           if (columnsResult.error) throw columnsResult.error;
           
@@ -541,8 +538,8 @@ export function setupTools(server: Server): void {
             content: [{
               type: 'text',
               text: JSON.stringify({
-                tables: tablesResult.data,
-                columns: columnsResult.data
+                tables: (tablesResult as any).data,
+                columns: (columnsResult as any).data
               }, null, 2)
             }]
           };
@@ -558,7 +555,7 @@ export function setupTools(server: Server): void {
             query = (query as any)[filter.operator](filter.column, filter.value);
           }
 
-          const result = await executeWithRetry(() => query);
+          const result = await executeWithRetry(async () => await query);
           
           if (result.error) throw result.error;
           success = true;

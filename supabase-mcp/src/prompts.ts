@@ -1,7 +1,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 export function setupPrompts(server: Server): void {
-  server.setRequestHandler('prompts/list', async () => ({
+  server.setRequestHandler(ListPromptsRequestSchema, async () => ({
     prompts: [
       {
         name: 'analyze-schema',
@@ -82,7 +83,7 @@ export function setupPrompts(server: Server): void {
     ]
   }));
 
-  server.setRequestHandler('prompts/get', async (request) => {
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     try {

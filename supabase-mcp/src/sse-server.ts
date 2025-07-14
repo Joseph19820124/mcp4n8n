@@ -143,37 +143,19 @@ function handleRequest(req: IncomingMessage, res: ServerResponse) {
       try {
         const jsonRpcRequest = JSON.parse(body);
         
-        // Handle different MCP methods
+        // For now, return a simple response indicating SSE is not fully implemented
         let response;
         switch (jsonRpcRequest.method) {
           case 'tools/list':
-            response = await server.listTools();
-            break;
-            
-          case 'tools/call':
-            response = await server.callTool(
-              jsonRpcRequest.params.name,
-              jsonRpcRequest.params.arguments
-            );
-            break;
-            
-          case 'resources/list':
-            response = await server.listResources();
-            break;
-            
-          case 'resources/read':
-            response = await server.readResource(jsonRpcRequest.params.uri);
-            break;
-            
+          case 'resources/list': 
           case 'prompts/list':
-            response = await server.listPrompts();
-            break;
-            
+          case 'tools/call':
+          case 'resources/read':
           case 'prompts/get':
-            response = await server.getPrompt(
-              jsonRpcRequest.params.name,
-              jsonRpcRequest.params.arguments
-            );
+            response = { 
+              error: 'SSE server is not fully implemented. Use stdio transport instead.', 
+              method: jsonRpcRequest.method 
+            };
             break;
             
           default:
@@ -341,7 +323,7 @@ process.on('SIGINT', () => {
 });
 
 // Start server
-httpServer.listen(PORT, HOST, () => {
+httpServer.listen(Number(PORT), HOST, () => {
   console.log(`Supabase MCP SSE Server running on http://${HOST}:${PORT}`);
   console.log(`Health check: http://${HOST}:${PORT}/health`);
   console.log(`SSE endpoint: http://${HOST}:${PORT}/sse`);

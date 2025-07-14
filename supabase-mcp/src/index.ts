@@ -38,11 +38,11 @@ setupPrompts(server);
 async function main() {
   const transport = new StdioServerTransport();
   
-  transport.onError = (error) => {
+  transport.onerror = (error: any) => {
     console.error('[Transport Error]', error);
   };
 
-  server.onError = (error) => {
+  server.onerror = (error: any) => {
     console.error('[Server Error]', error);
   };
 
